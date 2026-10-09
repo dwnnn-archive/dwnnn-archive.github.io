@@ -35,6 +35,9 @@ html.presentation-mode main>.portfolio-scene.is-active.is-exiting,
 html.presentation-mode main>.portfolio-scene.is-active.is-entering{
   opacity:0;pointer-events:none;
 }
+html.presentation-mode main>.portfolio-scene.is-active.is-exiting{
+  transition:opacity .36s ease;
+}
 html.presentation-mode main>.hero{justify-content:flex-start}
 html.presentation-mode main>.hero>div:first-child{margin-top:auto}
 html.presentation-mode .reveal,.reveal{opacity:1;transform:none;transition:none}
