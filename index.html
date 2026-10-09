@@ -38,8 +38,15 @@ html.presentation-mode main>.portfolio-scene.is-active.is-entering{
 html.presentation-mode main>.portfolio-scene.is-active.is-exiting{
   transition:opacity .36s ease;
 }
-html.presentation-mode main>.hero{justify-content:flex-start}
+/* Vertically center the complete intro group below the fixed navigation.
+   Paired auto margins collapse on short screens, keeping inner scrolling reachable. */
+html.presentation-mode main>.hero{
+  justify-content:flex-start;
+  padding-top:clamp(82px,10vh,120px);
+  padding-bottom:clamp(48px,8vh,90px);
+}
 html.presentation-mode main>.hero>div:first-child{margin-top:auto}
+html.presentation-mode main>.hero>.scroll{margin-bottom:auto}
 html.presentation-mode .reveal,.reveal{opacity:1;transform:none;transition:none}
 html.presentation-mode .scene-footer{margin-top:75px;padding-left:0;padding-right:0}
 .chapter-controls{
