@@ -74,6 +74,34 @@ html.presentation-mode .chapter-controls{display:flex}
   html.presentation-mode main>.portfolio-scene{transition:none!important}
   .chapter-controls button{transition:none}
 }
+
+/* Typography safety: keep complete glyphs inside each visible chapter. */
+.hero-title{max-width:100%;line-height:1.08;letter-spacing:-.025em}
+.hero-title span{display:block;width:max-content;white-space:nowrap;overflow:visible}
+.hero-title .serif{
+  margin-left:clamp(0px,6vw,96px);
+  letter-spacing:-.025em;
+  padding-right:.12em; /* italic glyphs may extend beyond their advance width */
+}
+.section h2,.skill h3,.project h3,.time-detail h3,.body-lead,.contact-link{
+  line-height:1.15;
+  overflow-wrap:anywhere;
+}
+.section-meta{flex-wrap:wrap;column-gap:15px;row-gap:8px}
+.about-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)}
+.project{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr)}
+.about-grid>*,.project>*,.project-info,.contact-link>span:first-child{min-width:0}
+.contact-link{gap:12px}
+.contact-link>span:first-child{overflow-wrap:anywhere}
+@media(max-width:850px){
+  .about-grid,.project{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:560px){
+  .hero-title{font-size:clamp(42px,12vw,70px)}
+  .section h2{font-size:clamp(42px,12vw,70px)}
+  .contact h2{font-size:clamp(52px,13vw,80px)}
+}
+
 </style></head>
 <body>
 <header class="topbar"><div class="shell topbar-inner"><a class="brand" href="#top" aria-label="맨 위로">DWN<em>®</em></a><button class="menu-toggle" id="menu" aria-label="메뉴 열기" aria-expanded="false" aria-controls="nav">☰</button><nav class="nav" id="nav" aria-label="주 메뉴"><a href="#about">ABOUT</a><a href="#skills">SKILLS</a><a href="#projects">PROJECTS</a><a href="#journey">JOURNEY</a><a href="#contact">CONTACT</a></nav><span class="eyebrow" style="font-size:10px">PORTFOLIO / 2026</span></div></header>
@@ -266,6 +294,55 @@ nav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
   });
   window.addEventListener('popstate',()=>goTo(chapterIndexFromHash(),{recordHistory:false,fromEdge:false}));
   window.addEventListener('hashchange',()=>goTo(chapterIndexFromHash(),{recordHistory:false,fromEdge:false}));
+})();
+
+
+/* Keep both large headline lines fully visible after loading fonts or resizing. */
+(function preventHeadlineClipping(){
+  const headline=document.querySelector('.hero-title');
+  if(!headline)return;
+  const lines=Array.from(headline.querySelectorAll('span'));
+  if(!lines.length)return;
+  let pending=false;
+  function fit(){
+    pending=false;
+    headline.style.removeProperty('font-size');
+    const titleRect=headline.getBoundingClientRect();
+    const safeRight=Math.min(titleRect.right,document.documentElement.clientWidth-12);
+    const original=parseFloat(getComputedStyle(headline).fontSize);
+    if(!Number.isFinite(original)||original<=0)return;
+    let scale=1;
+    for(const line of lines){
+      const rect=line.getBoundingClientRect();
+      const available=Math.max(1,safeRight-rect.left-12);
+      if(rect.width>available)scale=Math.min(scale,available/rect.width);
+    }
+    if(scale<1){
+      headline.style.fontSize=Math.max(24,original*scale*.985).toFixed(2)+'px';
+    }
+    /* Guard against rounding, zoom and italic overhang. */
+    for(let retry=0;retry<2;retry++){
+      const furthest=Math.max(...lines.map(line=>line.getBoundingClientRect().right));
+      const overflow=furthest-(safeRight-3);
+      if(overflow<=0)break;
+      const current=parseFloat(getComputedStyle(headline).fontSize);
+      const available=Math.max(1,titleRect.width);
+      headline.style.fontSize=Math.max(24,current*(1-(overflow+6)/available)).toFixed(2)+'px';
+    }
+  }
+  function schedule(){
+    if(pending)return;
+    pending=true;
+    requestAnimationFrame(fit);
+  }
+  window.addEventListener('resize',schedule,{passive:true});
+  window.addEventListener('pageshow',schedule);
+  window.visualViewport?.addEventListener('resize',schedule);
+  if(document.fonts){
+    document.fonts.ready.then(schedule);
+    document.fonts.addEventListener?.('loadingdone',schedule);
+  }
+  schedule();
 })();
 
 </script></body></html>
