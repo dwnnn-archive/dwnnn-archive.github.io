@@ -5,6 +5,9 @@ const viewports = [
   { width: 375, height: 812 },
   { width: 390, height: 844 },
   { width: 768, height: 1024 },
+  { width: 860, height: 800 },
+  { width: 900, height: 900 },
+  { width: 960, height: 820 },
   { width: 1024, height: 768 },
   { width: 1280, height: 800 },
   { width: 1648, height: 900 },
@@ -29,11 +32,31 @@ try {
       const issues = [];
       const heading = document.querySelector('.hero-title');
       const expected = ['Creative', 'Developer.'];
-      const lines = Array.from(heading.querySelectorAll('span'));
+      const lines = Array.from(heading.querySelectorAll(':scope > span'));
       const actual = lines.map(line => line.textContent.trim());
       if (actual.length !== 2 || actual.some((value, index) => value !== expected[index])) {
         issues.push('Headline content changed or missing: ' + JSON.stringify(actual));
       }
+      const latinRuns = Array.from(document.querySelectorAll('.latin-wide'));
+      if (latinRuns.length < 25) issues.push('English runs not widened consistently: ' + latinRuns.length);
+      const heroRun = document.querySelector('.hero-title .latin-wide');
+      const navRun = document.querySelector('.nav a .latin-wide');
+      if (!heroRun || !navRun) issues.push('Missing English typography styling in headline/navigation');
+      if (heroRun && getComputedStyle(heroRun).letterSpacing === 'normal')
+        issues.push('English-only letter spacing was not applied');
+      if (document.querySelector('.hero-copy .latin-wide')?.textContent.includes('문제를'))
+        issues.push('Korean text was unexpectedly wrapped as Latin');
+      const header = document.querySelector('.topbar-inner');
+      const nav = document.querySelector('.nav');
+      if (getComputedStyle(nav).display !== 'none') {
+        const brandRect = document.querySelector('.brand').getBoundingClientRect();
+        const navRect = nav.getBoundingClientRect();
+        const badgeRect = header.querySelector('.eyebrow').getBoundingClientRect();
+        if (navRect.left < brandRect.right - 2 || navRect.right > badgeRect.left + 2)
+          issues.push('Navigation overlaps brand or right metadata');
+      }
+      const navFontSize = parseFloat(getComputedStyle(document.querySelector('.nav a')).fontSize);
+      if (navFontSize < 15) issues.push('Navigation font smaller than 15px: ' + navFontSize);
       const chapter = heading.closest('.portfolio-scene');
       const chapterRect = chapter.getBoundingClientRect();
       const width = document.documentElement.clientWidth;
@@ -47,7 +70,7 @@ try {
 
       // Range fragments reveal overflowing text even when parent boxes stay within bounds.
       const targets = document.querySelectorAll(
-        'main h2, main h3, .section-meta span, .contact-link span, .hero-copy, .hero-aside'
+        'main h2, main h3, .section-meta span, .contact-link span, .hero-copy, .hero-aside, .nav a'
       );
       for (const target of targets) {
         const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
