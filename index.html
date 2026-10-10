@@ -102,6 +102,21 @@ html.presentation-mode .chapter-controls{display:flex}
   .contact h2{font-size:clamp(52px,13vw,80px)}
 }
 
+
+/* Latin-only optical widening: applies to the actual English text runs, not Hangul.
+   Avoid scaleX transforms because they can overflow their allocated text boxes. */
+.latin-wide{letter-spacing:.065em}
+.nav{gap:clamp(18px,2vw,34px)}
+.nav a{font-size:clamp(15px,1.05vw,18px);line-height:1.25}
+@media (min-width:851px) and (max-width:1050px){
+  .topbar-inner{gap:12px}
+  .nav{gap:18px}
+  .topbar .eyebrow{font-size:9px;letter-spacing:.08em}
+}
+@media (max-width:850px){
+  .nav a{font-size:20px;line-height:1.4}
+}
+
 </style></head>
 <body>
 <header class="topbar"><div class="shell topbar-inner"><a class="brand" href="#top" aria-label="맨 위로">DWN<em>®</em></a><button class="menu-toggle" id="menu" aria-label="메뉴 열기" aria-expanded="false" aria-controls="nav">☰</button><nav class="nav" id="nav" aria-label="주 메뉴"><a href="#about">ABOUT</a><a href="#skills">SKILLS</a><a href="#projects">PROJECTS</a><a href="#journey">JOURNEY</a><a href="#contact">CONTACT</a></nav><span class="eyebrow" style="font-size:10px">PORTFOLIO / 2026</span></div></header>
@@ -301,7 +316,7 @@ nav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
 (function preventHeadlineClipping(){
   const headline=document.querySelector('.hero-title');
   if(!headline)return;
-  const lines=Array.from(headline.querySelectorAll('span'));
+  const lines=Array.from(headline.querySelectorAll(':scope > span'));
   if(!lines.length)return;
   let pending=false;
   function fit(){
@@ -343,6 +358,46 @@ nav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
     document.fonts.addEventListener?.('loadingdone',schedule);
   }
   schedule();
+})();
+
+
+/* Broaden letter spacing only for Latin runs, leaving Korean typography intact. */
+(function widenLatinText(){
+  const latin=/[A-Za-z][A-Za-z0-9'’./&:-]*(?:[ \t]+[A-Za-z][A-Za-z0-9'’./&:-]*)*/g;
+  const roots=document.querySelectorAll('header,main,footer,.chapter-controls');
+  const textNodes=[];
+  for(const root of roots){
+    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{
+      acceptNode(node){
+        const parent=node.parentElement;
+        if(!parent||parent.closest('script,style,noscript,textarea,svg,.latin-wide'))return NodeFilter.FILTER_REJECT;
+        return /[A-Za-z]/.test(node.nodeValue)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_SKIP;
+      }
+    });
+    while(walker.nextNode())textNodes.push(walker.currentNode);
+  }
+  for(const node of textNodes){
+    if(!node.isConnected||node.parentElement?.closest('.latin-wide'))continue;
+    const source=node.nodeValue;
+    latin.lastIndex=0;
+    const runs=Array.from(source.matchAll(latin));
+    if(!runs.length)continue;
+    const fragment=document.createDocumentFragment();
+    let position=0;
+    for(const run of runs){
+      const index=run.index;
+      if(index>position)fragment.appendChild(document.createTextNode(source.slice(position,index)));
+      const span=document.createElement('span');
+      span.className='latin-wide';
+      span.textContent=run[0];
+      fragment.appendChild(span);
+      position=index+run[0].length;
+    }
+    if(position<source.length)fragment.appendChild(document.createTextNode(source.slice(position)));
+    node.replaceWith(fragment);
+  }
+  // Fit the oversized intro heading again after its Latin content has been widened.
+  window.dispatchEvent(new Event('resize'));
 })();
 
 </script></body></html>
