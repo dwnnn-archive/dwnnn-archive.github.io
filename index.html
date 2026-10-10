@@ -103,9 +103,25 @@ html.presentation-mode .chapter-controls{display:flex}
 }
 
 
-/* Latin-only optical widening: applies to the actual English text runs, not Hangul.
-   Avoid scaleX transforms because they can overflow their allocated text boxes. */
-.latin-wide{letter-spacing:.065em}
+/* Widen the English letterforms rather than merely spreading characters apart.
+   Each text run reserves its transformed width to prevent clipping/overlap. */
+.latin-wide{
+  --latin-x:1.13;
+  --latin-space:0px;
+  display:inline-block;
+  white-space:nowrap;
+  letter-spacing:.02em;
+  transform:scaleX(var(--latin-x));
+  transform-origin:left center;
+  margin-inline-end:var(--latin-space);
+}
+.hero-title .latin-wide{--latin-x:1.22}
+.section h2 .latin-wide,.project h3 .latin-wide,.skill h3 .latin-wide,
+.contact h2 .latin-wide,.contact-link .latin-wide{--latin-x:1.17}
+.nav a .latin-wide{--latin-x:1.12}
+@media(max-width:560px){.hero-title .latin-wide{--latin-x:1.16}}
+/* Decorative generated copy is not a DOM text node and needs a separate rule. */
+.about-art:after{letter-spacing:.18em;transform:scaleX(1.1);transform-origin:left center}
 .nav{gap:clamp(18px,2vw,34px)}
 .nav a{font-size:clamp(15px,1.05vw,18px);line-height:1.25}
 @media (min-width:851px) and (max-width:1050px){
@@ -351,6 +367,7 @@ nav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
     requestAnimationFrame(fit);
   }
   window.addEventListener('resize',schedule,{passive:true});
+  window.addEventListener('portfolio:latin-layout',schedule);
   window.addEventListener('pageshow',schedule);
   window.visualViewport?.addEventListener('resize',schedule);
   if(document.fonts){
@@ -363,7 +380,7 @@ nav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
 
 /* Broaden letter spacing only for Latin runs, leaving Korean typography intact. */
 (function widenLatinText(){
-  const latin=/[A-Za-z][A-Za-z0-9'’./&:-]*(?:[ \t]+[A-Za-z][A-Za-z0-9'’./&:-]*)*/g;
+  const latin=/[A-Za-z][A-Za-z0-9'’./&:-]*/g;
   const roots=document.querySelectorAll('header,main,footer,.chapter-controls');
   const textNodes=[];
   for(const root of roots){
@@ -396,8 +413,42 @@ nav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
     if(position<source.length)fragment.appendChild(document.createTextNode(source.slice(position)));
     node.replaceWith(fragment);
   }
-  // Fit the oversized intro heading again after its Latin content has been widened.
-  window.dispatchEvent(new Event('resize'));
+  // Trigger the initial heading fit; a second fit runs once widths are reserved.
+  window.dispatchEvent(new Event('portfolio:latin-layout'));
+})();
+
+
+/* Reserve real layout width for horizontally stretched Latin words.
+   CSS transforms alone do not affect inline layout and can clip final letters. */
+(function reserveLatinWidths(){
+  const runs=Array.from(document.querySelectorAll('.latin-wide'));
+  if(!runs.length)return;
+  let pending=false;
+  function updateWidths(){
+    pending=false;
+    // Measure first and write second to avoid repeated layout thrashing.
+    const widths=runs.map(el=>{
+      const scale=parseFloat(getComputedStyle(el).getPropertyValue('--latin-x'))||1;
+      return Math.max(0,el.offsetWidth*(scale-1)+1);
+    });
+    runs.forEach((el,index)=>{
+      el.style.setProperty('--latin-space',widths[index].toFixed(2)+'px');
+    });
+    window.dispatchEvent(new Event('portfolio:latin-layout'));
+  }
+  function schedule(){
+    if(pending)return;
+    pending=true;
+    requestAnimationFrame(updateWidths);
+  }
+  window.addEventListener('resize',schedule,{passive:true});
+  window.visualViewport?.addEventListener('resize',schedule);
+  window.addEventListener('pageshow',schedule);
+  if(document.fonts){
+    document.fonts.ready.then(schedule);
+    document.fonts.addEventListener?.('loadingdone',schedule);
+  }
+  schedule();
 })();
 
 </script></body></html>
