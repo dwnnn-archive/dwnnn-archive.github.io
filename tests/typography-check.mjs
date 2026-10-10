@@ -46,14 +46,14 @@ try {
         issues.push('English-only letter spacing was not applied');
       if (heroRun) {
         const measured = heroRun.getBoundingClientRect().width / Math.max(1, heroRun.offsetWidth);
-        const target = viewport.width <= 560 ? 1.16 : 1.22;
+        const target = window.innerWidth <= 560 ? 1.16 : 1.22;
         if (Math.abs(measured-target)>0.035)
           issues.push('English glyphs did not stretch by intended ratio: '+measured.toFixed(3));
         const reserved = parseFloat(getComputedStyle(heroRun).marginRight) || 0;
         if (reserved <= 0)
           issues.push('No reserved layout width for expanded headline');
       }
-      if (navRun) {
+      if (navRun && getComputedStyle(navRun.closest('.nav')).display !== 'none') {
         const ratio=navRun.getBoundingClientRect().width / Math.max(1,navRun.offsetWidth);
         if (Math.abs(ratio-1.12)>0.035)
           issues.push('Navigation Latin letterform scaling missing: '+ratio.toFixed(3));
