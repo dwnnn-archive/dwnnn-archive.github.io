@@ -44,6 +44,26 @@ try {
       if (!heroRun || !navRun) issues.push('Missing English typography styling in headline/navigation');
       if (heroRun && getComputedStyle(heroRun).letterSpacing === 'normal')
         issues.push('English-only letter spacing was not applied');
+      if (heroRun) {
+        const measured = heroRun.getBoundingClientRect().width / Math.max(1, heroRun.offsetWidth);
+        const target = viewport.width <= 560 ? 1.16 : 1.22;
+        if (Math.abs(measured-target)>0.035)
+          issues.push('English glyphs did not stretch by intended ratio: '+measured.toFixed(3));
+        const reserved = parseFloat(getComputedStyle(heroRun).marginRight) || 0;
+        if (reserved <= 0)
+          issues.push('No reserved layout width for expanded headline');
+      }
+      if (navRun) {
+        const ratio=navRun.getBoundingClientRect().width / Math.max(1,navRun.offsetWidth);
+        if (Math.abs(ratio-1.12)>0.035)
+          issues.push('Navigation Latin letterform scaling missing: '+ratio.toFixed(3));
+      }
+      const sectionHeading=document.querySelector('#about h2 .latin-wide');
+      if(sectionHeading){
+        const ratio=sectionHeading.getBoundingClientRect().width/Math.max(1,sectionHeading.offsetWidth);
+        if(Math.abs(ratio-1.17)>0.035)
+          issues.push('Other English headings did not widen: '+ratio.toFixed(3));
+      }
       if (document.querySelector('.hero-copy .latin-wide')?.textContent.includes('문제를'))
         issues.push('Korean text was unexpectedly wrapped as Latin');
       const header = document.querySelector('.topbar-inner');
@@ -62,7 +82,11 @@ try {
       const width = document.documentElement.clientWidth;
       for (const line of lines) {
         const rect = line.getBoundingClientRect();
-        if (rect.right > Math.min(width, chapterRect.right) - 5 || rect.left < -1) {
+        // Measure both the block line and the transformed English glyph box.
+        const glyph= line.querySelector('.latin-wide');
+        const glyphRect=glyph?.getBoundingClientRect();
+        if (rect.right > Math.min(width, chapterRect.right) - 5 || rect.left < -1 ||
+            glyphRect?.right > Math.min(width,chapterRect.right)-5 || glyphRect?.left < -1) {
           issues.push('Headline overflows: ' + line.textContent.trim() +
             ' [' + rect.left.toFixed(1) + ', ' + rect.right.toFixed(1) + ']');
         }
