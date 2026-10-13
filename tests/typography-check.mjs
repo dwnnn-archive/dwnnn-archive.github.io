@@ -102,6 +102,10 @@ try {
         issues.push('Navigation font smaller than 15px');
       if (parseFloat(getComputedStyle(document.querySelector('.skill p')).fontSize) < 15)
         issues.push('Skill body text smaller than 15px');
+      if (document.querySelectorAll('.visual-mark').length !== 4)
+        issues.push('Expected four compact decorative marks');
+      if (document.querySelector('.about-art,.project-visual'))
+        issues.push('A large decorative panel remains');
       return issues;
     }));
 
@@ -117,7 +121,8 @@ try {
           '.portfolio-scene.is-active h1, .portfolio-scene.is-active h2, .portfolio-scene.is-active h3, ' +
           '.portfolio-scene.is-active p, .portfolio-scene.is-active .section-meta, ' +
           '.portfolio-scene.is-active .contact-link, .portfolio-scene.is-active .hero-copy, ' +
-          '.portfolio-scene.is-active .hero-aside, .portfolio-scene.is-active .fact, ' +
+          '.portfolio-scene.is-active .hero-aside, .portfolio-scene.is-active .about-signature, ' +
+          '.portfolio-scene.is-active .project-kicker, .portfolio-scene.is-active .fact, ' +
           '.portfolio-scene.is-active .tags, .portfolio-scene.is-active .time-date, ' +
           '.portfolio-scene.is-active .footer, .nav a'
         );
@@ -138,6 +143,29 @@ try {
         }
         if (active.scrollWidth > active.clientWidth + 2)
           issues.push(`Chapter ${active.dataset.chapter}: horizontal overflow`);
+        for (const mark of active.querySelectorAll('.visual-mark')) {
+          const rect = mark.getBoundingClientRect();
+          const bodySize = parseFloat(getComputedStyle(document.querySelector('.body-text')).fontSize);
+          if (rect.height > bodySize + 2 || rect.width > bodySize * 2 || rect.height < 8)
+            issues.push('Decoration is not text-sized: ' + mark.textContent.trim());
+          if (mark.getAttribute('aria-hidden') !== 'true')
+            issues.push('Decorative mark is announced as content');
+          const label = mark.nextElementSibling?.getBoundingClientRect();
+          if (!label || label.left < rect.right || label.top > rect.bottom)
+            issues.push('Decorative mark is detached from its label');
+        }
+        for (const project of active.querySelectorAll('.project')) {
+          const card = project.getBoundingClientRect();
+          const info = project.querySelector('.project-info').getBoundingClientRect();
+          const style = getComputedStyle(project);
+          const nonContentHeight = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) +
+            parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+          if (Math.abs(info.left - card.left) > 2 || card.height - info.height > nonContentHeight + 2)
+            issues.push('Project retains space reserved for the removed image panel');
+        }
+        const about = active.querySelector('.about-grid');
+        if (about && Math.abs(about.firstElementChild.getBoundingClientRect().width - about.clientWidth) > 2)
+          issues.push('About still reserves an empty image column');
         return issues;
       }));
       if (chapter < chapters - 1) {
