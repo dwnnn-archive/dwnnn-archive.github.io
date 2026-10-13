@@ -53,15 +53,59 @@ html.presentation-mode main>.portfolio-scene.is-active.is-entering{
 html.presentation-mode main>.portfolio-scene.is-active.is-exiting{
   transition:opacity .36s ease;
 }
+/* Keep section labels below the fixed header and reserve only the controls' height.
+   Compact heading gaps prevent empty padding from making fitting chapters scroll. */
+html.presentation-mode main>.section{
+  padding-top:103px;
+  padding-bottom:80px;
+}
+html.presentation-mode main>.section h2{
+  margin-top:clamp(24px,3.5vh,48px);
+  margin-bottom:clamp(24px,3.5vh,48px);
+}
+.portfolio-scene:focus{outline:none}
+.portfolio-scene[tabindex="0"]:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
+@media(max-width:850px){
+  html.presentation-mode main>.section{padding-top:89px}
+}
+@media(max-width:560px){
+  html.presentation-mode main>.section{padding-bottom:72px}
+}
+/* Use smaller gaps only in chapters that would otherwise overflow.
+   Fonts and content stay intact; genuinely long chapters retain native scrolling. */
+html.presentation-mode main>.section.is-compact{padding-top:95px}
+html.presentation-mode main>.section.is-compact h2{margin-top:16px;margin-bottom:16px}
+html.presentation-mode .is-compact .about-signature{margin-bottom:12px}
+html.presentation-mode .is-compact .body-lead{margin-bottom:16px}
+html.presentation-mode .is-compact .fact-grid{margin-top:16px}
+html.presentation-mode .is-compact .fact{padding:11px 0}
+html.presentation-mode .is-compact .fact small{margin-bottom:6px}
+html.presentation-mode .is-compact .skill{min-height:0;padding-top:18px;padding-bottom:18px}
+html.presentation-mode .is-compact .skill h3{margin:18px 0 8px}
+html.presentation-mode .is-compact .time-row>*{padding:12px 0}
+html.presentation-mode .is-compact .project{padding:24px 0}
+html.presentation-mode .is-compact .project h3{margin:16px 0}
+html.presentation-mode .is-compact .project p{margin:12px 0}
+html.presentation-mode .is-compact .tags{margin-top:16px}
+html.presentation-mode .is-compact .contact-links{margin-top:28px}
+html.presentation-mode .is-compact .contact-link{padding:16px 0}
+html.presentation-mode .is-compact .scene-footer{margin-top:24px;margin-bottom:0;padding-top:16px;padding-bottom:16px}
+html.presentation-mode main>.hero.is-compact{padding-top:82px;padding-bottom:80px}
+html.presentation-mode .hero.is-compact .hero-title{margin:12px 0}
+html.presentation-mode .hero.is-compact .hero-bottom{padding-top:16px}
+html.presentation-mode main>.hero.is-compact>.scroll{margin-top:16px}
+@media(max-width:850px){
+  html.presentation-mode main>.section.is-compact{padding-top:81px}
+}
 /* Vertically center the complete intro group below the fixed navigation.
    Paired auto margins collapse on short screens, keeping inner scrolling reachable. */
 html.presentation-mode main>.hero{
   justify-content:flex-start;
   padding-top:clamp(82px,10vh,120px);
-  padding-bottom:clamp(48px,8vh,90px);
+  padding-bottom:clamp(80px,8vh,90px);
 }
 html.presentation-mode main>.hero>div:first-child{margin-top:auto}
-html.presentation-mode main>.hero>.scroll{margin-bottom:auto}
+html.presentation-mode main>.hero>.scroll{margin-top:clamp(24px,5vh,52px);margin-bottom:auto}
 html.presentation-mode .reveal,.reveal{opacity:1;transform:none;transition:none}
 html.presentation-mode .scene-footer{margin-top:75px;padding-left:0;padding-right:0}
 .chapter-controls{
@@ -226,8 +270,6 @@ nav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
   let current=chapterIndexFromHash();
   let busy=false;
   let queuedNavigation=null;
-  let wheelAmount=0;
-  let lastWheelTime=0;
   const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const nextFrame=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   function updateControls(){
@@ -247,14 +289,14 @@ nav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
   });
   document.documentElement.classList.add('presentation-mode');
   updateControls();
+  chapters[current].focus({preventScroll:true});
 
   async function goTo(destination,{recordHistory=true,fromEdge=false}={}){
     if(destination<0||destination>=chapters.length||destination===current)return;
-    if(busy){if(!fromEdge)queuedNavigation={destination,recordHistory,fromEdge};return}
-    busy=true;wheelAmount=0;
+    if(busy){if(!fromEdge)queuedNavigation={destination,recordHistory};return}
+    busy=true;
     const previous=chapters[current];
     const upcoming=chapters[destination];
-    const direction=Math.sign(destination-current);
     const durationOut=reducedMotion.matches?0:370;
     const durationIn=reducedMotion.matches?0:470;
     previous.classList.add('is-exiting');
@@ -262,11 +304,7 @@ nav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
     previous.setAttribute('aria-hidden','true');
     if(durationOut)await delay(durationOut);
     previous.classList.remove('is-active','is-exiting');
-    if(fromEdge&&direction<0){
-      upcoming.scrollTop=upcoming.scrollHeight-upcoming.clientHeight;
-    }else{
-      upcoming.scrollTop=0;
-    }
+    upcoming.scrollTop=fromEdge&&destination<current?upcoming.scrollHeight-upcoming.clientHeight:0;
     upcoming.classList.add('is-active','is-entering');
     upcoming.inert=false;
     upcoming.setAttribute('aria-hidden','false');
@@ -277,6 +315,10 @@ nav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
     }
     if(durationIn)await nextFrame();
     upcoming.classList.remove('is-entering');
+    // Keep enabled chapter buttons focused for repeated keyboard activation.
+    if(!controls.contains(document.activeElement)||document.activeElement.disabled){
+      upcoming.focus({preventScroll:true});
+    }
     if(durationIn)await delay(durationIn+100);
     busy=false;
     if(queuedNavigation){
@@ -284,19 +326,9 @@ nav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
       if(queued.destination!==current)goTo(queued.destination,queued);
     }
   }
-  const canScroll=(direction)=>{
-    const chapter=chapters[current];
-    return direction>0
-      ?chapter.scrollTop+chapter.clientHeight<chapter.scrollHeight-3
-      :chapter.scrollTop>3;
-  };
-  function step(direction,fromEdge=true){
-    if(busy)return;
-    goTo(current+direction,{recordHistory:true,fromEdge});
-  }
   controls.addEventListener('click',event=>{
     const button=event.target.closest('button[data-step]');
-    if(button)goTo(current+Number(button.dataset.step),{fromEdge:false});
+    if(button)goTo(current+Number(button.dataset.step));
   });
   document.addEventListener('click',event=>{
     const link=event.target.closest('a[href^="#"]');
@@ -305,65 +337,87 @@ nav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
     const destination=!hash||hash==='top'?0:chapters.findIndex(chapter=>chapter.id===hash);
     if(destination<0)return;
     event.preventDefault();
-    goTo(destination,{recordHistory:true,fromEdge:false});
+    goTo(destination);
   });
-  let touchStartY=null;
-  let touchStartAtTop=false;
-  let touchStartAtBottom=false;
-  document.addEventListener('touchstart',event=>{
-    if(event.touches.length!==1){touchStartY=null;return}
-    touchStartY=event.touches[0].clientY;
-    const chapter=chapters[current];
-    touchStartAtTop=chapter.scrollTop<=3;
-    touchStartAtBottom=chapter.scrollTop+chapter.clientHeight>=chapter.scrollHeight-3;
-  },{passive:true});
-  document.addEventListener('touchend',event=>{
-    if(touchStartY===null||event.changedTouches.length!==1)return;
-    const movement=touchStartY-event.changedTouches[0].clientY;
-    touchStartY=null;
-    if(Math.abs(movement)<75||busy)return;
-    const direction=Math.sign(movement);
-    if(direction>0&&touchStartAtBottom||direction<0&&touchStartAtTop){
-      if(!canScroll(direction))step(direction,true);
-    }
-  },{passive:true});
+  const canScroll=direction=>{
+    const scene=chapters[current];
+    return direction>0?scene.scrollTop+scene.clientHeight<scene.scrollHeight-1:scene.scrollTop>1;
+  };
+  // A gesture that starts by scrolling stays a scroll, even upon reaching an edge.
+  // After a fade, the remaining trackpad momentum cannot trigger another chapter.
+  let lastWheel=-Infinity,wheelDirection=0,wheelAmount=0,wheelMode=null;
   document.addEventListener('wheel',event=>{
-    if(event.ctrlKey||Math.abs(event.deltaY)<2)return;
-    if(busy){event.preventDefault();return}
-    const direction=Math.sign(event.deltaY);
+    if(event.ctrlKey||event.metaKey||Math.abs(event.deltaX)>Math.abs(event.deltaY)||!event.deltaY||nav.classList.contains('open'))return;
+    const now=performance.now(),direction=Math.sign(event.deltaY);
+    if(now-lastWheel>250||direction!==wheelDirection){wheelMode=null;wheelAmount=0}
+    lastWheel=now;wheelDirection=direction;
+    if(busy){wheelMode='transition';event.preventDefault();return}
+    if(wheelMode==='transition'){event.preventDefault();return}
+    const scene=chapters[current];
+    const delta=event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?scene.clientHeight:1);
     if(canScroll(direction)){
-      wheelAmount=0;
-      if(!chapters[current].contains(event.target)){
-        event.preventDefault();
-        chapters[current].scrollBy({top:event.deltaY,behavior:'auto'});
+      wheelMode='scroll';
+      if(!scene.contains(event.target)){
+        event.preventDefault();scene.scrollBy({top:delta,behavior:'instant'});
       }
       return;
     }
     event.preventDefault();
-    const now=performance.now();
-    if(now-lastWheelTime>380||Math.sign(wheelAmount)!==direction)wheelAmount=0;
-    lastWheelTime=now;
-    wheelAmount+=event.deltaY;
-    if(Math.abs(wheelAmount)>=60)step(direction,true);
+    if(wheelMode==='scroll')return;
+    wheelAmount+=delta;
+    if(event.deltaMode!==0||Math.abs(wheelAmount)>=60){
+      wheelMode='transition';
+      goTo(current+direction,{fromEdge:true});
+    }
   },{passive:false});
-  document.addEventListener('keydown',event=>{
-    if(event.altKey||event.ctrlKey||event.metaKey||event.defaultPrevented)return;
-    if(event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
-    if(event.code==='Space'&&event.target.closest('button,a'))return;
-    let direction=0;
-    if(['ArrowDown','PageDown'].includes(event.key)||event.code==='Space'&&!event.shiftKey)direction=1;
-    if(['ArrowUp','PageUp'].includes(event.key)||event.code==='Space'&&event.shiftKey)direction=-1;
-    if(!direction)return;
-    event.preventDefault();
-    if(busy)return;
-    if(canScroll(direction)){
-      chapters[current].scrollBy({top:direction*Math.max(170,chapters[current].clientHeight*.72),behavior:reducedMotion.matches?'auto':'smooth'});
-    }else step(direction,true);
-  });
-  window.addEventListener('popstate',()=>goTo(chapterIndexFromHash(),{recordHistory:false,fromEdge:false}));
-  window.addEventListener('hashchange',()=>goTo(chapterIndexFromHash(),{recordHistory:false,fromEdge:false}));
+  let touch=null;
+  document.addEventListener('touchstart',event=>{
+    touch=null;
+    if(event.touches.length!==1||busy||event.target.closest('.topbar,.chapter-controls'))return;
+    const point=event.touches[0];
+    touch={x:point.clientX,y:point.clientY,index:current,top:chapters[current].scrollTop,
+      atTop:!canScroll(-1),atBottom:!canScroll(1)};
+  },{passive:true});
+  document.addEventListener('touchcancel',()=>{touch=null},{passive:true});
+  document.addEventListener('touchend',event=>{
+    const start=touch;touch=null;
+    if(!start||busy||current!==start.index||event.changedTouches.length!==1)return;
+    const point=event.changedTouches[0],dy=start.y-point.clientY,dx=start.x-point.clientX;
+    if(Math.abs(dy)<75||Math.abs(dy)<Math.abs(dx)*1.2||Math.abs(chapters[current].scrollTop-start.top)>2)return;
+    const direction=Math.sign(dy);
+    if((direction>0?start.atBottom:start.atTop)&&!canScroll(direction))goTo(current+direction,{fromEdge:true});
+  },{passive:true});
+  window.addEventListener('popstate',()=>goTo(chapterIndexFromHash(),{recordHistory:false}));
+  window.addEventListener('hashchange',()=>goTo(chapterIndexFromHash(),{recordHistory:false}));
 })();
 
+
+/* Measure the spacious layout first; compact only the chapters that need it.
+   Two frames let font loading and Latin width compensation settle before measuring. */
+(function fitChapterSpacing(){
+  const scenes=Array.from(document.querySelectorAll('.portfolio-scene'));
+  let pending=false;
+  function schedule(){
+    if(pending)return;
+    pending=true;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      pending=false;
+      const positions=scenes.map(scene=>scene.scrollTop);
+      scenes.forEach(scene=>scene.classList.remove('is-compact'));
+      const needsCompact=scenes.map(scene=>scene.scrollHeight>scene.clientHeight+1);
+      scenes.forEach((scene,index)=>{
+        scene.classList.toggle('is-compact',needsCompact[index]);
+        scene.scrollTop=positions[index];
+        scene.tabIndex=scene.scrollHeight>scene.clientHeight+1?0:-1;
+      });
+    }));
+  }
+  ['resize','pageshow','portfolio:latin-layout'].forEach(name=>window.addEventListener(name,schedule));
+  window.visualViewport?.addEventListener('resize',schedule);
+  document.fonts?.ready.then(schedule);
+  document.fonts?.addEventListener?.('loadingdone',schedule);
+  schedule();
+})();
 
 /* Keep both large headline lines fully visible after loading fonts or resizing. */
 (function preventHeadlineClipping(){
